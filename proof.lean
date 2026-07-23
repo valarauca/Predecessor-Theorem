@@ -249,7 +249,119 @@ lemma modeD_iff {d : ℝ} (hd0 : 0 < d) (hd2 : d ≤ 2) {x : Fin m → ℝ}
     (∃ q ∈ Qbox m, ∃ i j, i ≠ j ∧
         q i - d * x i < -1 ∧ q j - d * x j < -1) ↔
       (4 : ℝ) - (m : ℝ) < d * sigma2 x := by
-  sorry
+  have hσpos : 0 < sigma2 x := sigma2_pos x hx0 hs
+  have hσ1 : sigma2 x ≤ 1 := by
+    unfold sigma2
+    split_ifs with hne
+    · apply Finset.sup'_le
+      intro p hp
+      rw [Finset.mem_offDiag] at hp
+      obtain ⟨_, _, hpne⟩ := hp
+      calc x p.1 + x p.2
+          = ∑ k ∈ ({p.1, p.2} : Finset (Fin m)), x k := (Finset.sum_pair hpne).symm
+        _ ≤ ∑ k, x k :=
+            Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _) (fun k _ _ => hx0 k)
+        _ = 1 := hx1
+    · exact zero_le_one
+  have hdσ2 : d * sigma2 x ≤ 2 := by nlinarith [hσ1, hσpos, hd0, hd2]
+  constructor
+  · rintro ⟨q, hq, i, j, hij, hqi, hqj⟩
+    simp only [Qbox, Set.mem_setOf_eq] at hq
+    obtain ⟨hqsum, hqabs⟩ := hq
+    have hcompl : (∑ k ∈ ({i, j} : Finset (Fin m))ᶜ, q k) ≤ ((m : ℝ) - 2) := by
+      have hb : (∑ k ∈ ({i, j} : Finset (Fin m))ᶜ, q k)
+          ≤ (({i, j} : Finset (Fin m))ᶜ.card : ℝ) := by
+        have h := Finset.sum_le_card_nsmul (({i, j} : Finset (Fin m))ᶜ) q 1
+          (fun k _ => (abs_le.mp (hqabs k)).2)
+        simpa using h
+      have hcard : (({i, j} : Finset (Fin m))ᶜ.card : ℝ) = (m : ℝ) - 2 := by
+        rw [Finset.card_compl, Fintype.card_fin, Finset.card_pair hij,
+            Nat.cast_sub (by omega : 2 ≤ m)]
+        norm_num
+      rwa [hcard] at hb
+    have hpair : (∑ k ∈ ({i, j} : Finset (Fin m)), q k) +
+        (∑ k ∈ ({i, j} : Finset (Fin m))ᶜ, q k) = 0 := by
+      rw [Finset.sum_add_sum_compl]; exact hqsum
+    rw [Finset.sum_pair hij] at hpair
+    have hqij : q i + q j = -(∑ k ∈ ({i, j} : Finset (Fin m))ᶜ, q k) := by linarith
+    have hdax : d * (x i + x j) ≤ d * sigma2 x :=
+      mul_le_mul_of_nonneg_left (add_le_sigma2 x hij) (le_of_lt hd0)
+    have hexp : d * (x i + x j) = d * x i + d * x j := by ring
+    linarith [hqi, hqj, hcompl, hqij, hdax, hexp]
+  · intro hlt
+    have hmR : (2 : ℝ) < (m : ℝ) := by linarith
+    have hm2R : (0 : ℝ) < (m : ℝ) - 2 := by linarith
+    have hm2ne : (m : ℝ) - 2 ≠ 0 := ne_of_gt hm2R
+    obtain ⟨i, j, hij, hxi, hxj, hσeq⟩ := exists_sigma2_pair_pos x hx0 hs
+    have h1 : 0 < d * x i := mul_pos hd0 hxi
+    have h2 : 0 < d * x j := mul_pos hd0 hxj
+    have h3 : 0 < d * sigma2 x - (4 - (m : ℝ)) := by linarith
+    have hmin : 0 < min (d * x i) (min (d * x j) (d * sigma2 x - (4 - (m : ℝ)))) :=
+      lt_min h1 (lt_min h2 h3)
+    have mle1 : min (d * x i) (min (d * x j) (d * sigma2 x - (4 - (m : ℝ)))) ≤ d * x i :=
+      min_le_left _ _
+    have mle2 : min (d * x i) (min (d * x j) (d * sigma2 x - (4 - (m : ℝ)))) ≤ d * x j :=
+      le_trans (min_le_right _ _) (min_le_left _ _)
+    have mle3 : min (d * x i) (min (d * x j) (d * sigma2 x - (4 - (m : ℝ))))
+        ≤ d * sigma2 x - (4 - (m : ℝ)) :=
+      le_trans (min_le_right _ _) (min_le_right _ _)
+    set ε : ℝ := (min (d * x i) (min (d * x j) (d * sigma2 x - (4 - (m : ℝ))))) / 2 with hε
+    have hε_pos : 0 < ε := by rw [hε]; linarith [hmin]
+    have hεi : ε ≤ d * x i := by rw [hε]; linarith [mle1, hmin]
+    have hεj : ε ≤ d * x j := by rw [hε]; linarith [mle2, hmin]
+    have hScond : 2 * ε ≤ d * sigma2 x - (4 - (m : ℝ)) := by rw [hε]; linarith [mle3]
+    set S : ℝ := 2 - d * (x i + x j) + 2 * ε with hS
+    set c : ℝ := S / ((m : ℝ) - 2) with hc
+    have hSmulEq : d * (x i + x j) = d * sigma2 x := by rw [hσeq]
+    have hSpos : 0 < S := by rw [hS, hSmulEq]; linarith [hdσ2, hε_pos]
+    have hSle : S ≤ (m : ℝ) - 2 := by rw [hS, hSmulEq]; linarith [hScond]
+    have hc_pos : 0 < c := by rw [hc]; exact div_pos hSpos hm2R
+    have hc_le : c ≤ 1 := by rw [hc, div_le_one hm2R]; exact hSle
+    set q : Fin m → ℝ := fun k => if k = i then (-1 + d * x i - ε)
+        else if k = j then (-1 + d * x j - ε) else c with hqdef
+    have hqi_val : q i = -1 + d * x i - ε := by simp only [hqdef, if_true]
+    have hqj_val : q j = -1 + d * x j - ε := by
+      simp only [hqdef, if_true]; rw [if_neg (Ne.symm hij)]
+    have hcompl_sum : (∑ k ∈ ({i, j} : Finset (Fin m))ᶜ, q k) = ((m : ℝ) - 2) * c := by
+      have hcong : (∑ k ∈ ({i, j} : Finset (Fin m))ᶜ, q k)
+          = ∑ _k ∈ ({i, j} : Finset (Fin m))ᶜ, c := by
+        apply Finset.sum_congr rfl
+        intro k hk
+        rw [Finset.mem_compl, Finset.mem_insert, Finset.mem_singleton] at hk
+        push_neg at hk
+        simp only [hqdef]; rw [if_neg hk.1, if_neg hk.2]
+      rw [hcong, Finset.sum_const, Finset.card_compl, Fintype.card_fin,
+          Finset.card_pair hij, nsmul_eq_mul]
+      congr 1
+      rw [Nat.cast_sub (by omega : 2 ≤ m)]
+      norm_num
+    refine ⟨q, ?_, i, j, hij, ?_, ?_⟩
+    · simp only [Qbox, Set.mem_setOf_eq]
+      refine ⟨?_, ?_⟩
+      · rw [← Finset.sum_add_sum_compl ({i, j} : Finset (Fin m)) q, Finset.sum_pair hij,
+            hqi_val, hqj_val, hcompl_sum, hc, hS]
+        field_simp
+        ring
+      · intro k
+        by_cases hki : k = i
+        · rw [hki, hqi_val, abs_le]
+          have hxi1 : x i ≤ 1 := by
+            have h := Finset.single_le_sum (f := x) (fun t _ => hx0 t) (mem_univ i)
+            rwa [hx1] at h
+          have hdxi : d * x i ≤ 2 := by nlinarith [hxi1, hd2, hd0]
+          exact ⟨by linarith [hεi], by linarith [hε_pos, hdxi]⟩
+        · by_cases hkj : k = j
+          · rw [hkj, hqj_val, abs_le]
+            have hxj1 : x j ≤ 1 := by
+              have h := Finset.single_le_sum (f := x) (fun t _ => hx0 t) (mem_univ j)
+              rwa [hx1] at h
+            have hdxj : d * x j ≤ 2 := by nlinarith [hxj1, hd2, hd0]
+            exact ⟨by linarith [hεj], by linarith [hε_pos, hdxj]⟩
+          · have hqk : q k = c := by simp only [hqdef]; rw [if_neg hki, if_neg hkj]
+            rw [hqk, abs_le]
+            exact ⟨by linarith [hc_pos], hc_le⟩
+    · rw [hqi_val]; linarith [hε_pos]
+    · rw [hqj_val]; linarith [hε_pos]
  
 /-! ## Mode B (paper Lemma 4.3) -/
  
