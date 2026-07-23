@@ -190,7 +190,47 @@ lemma trap_iff {q : Fin m → ℝ} (hq : q ∈ Qbox m)
       ((∃ i j, i ≠ j ∧ q i - d * x i < -1 ∧ q j - d * x j < -1) ∨
        ((∀ i, -1 ≤ q i - d * x i) ∧
         ∀ k ∈ supp x, 1 - d < q k - d * x k)) := by
-  sorry
+  have hsafe : ∀ k, (step d x k q ∈ Qbox m) ↔
+      ((∀ i, i ≠ k → -1 ≤ q i - d * x i) ∧ q k - d * x k ≤ 1 - d) :=
+    fun k => step_mem_iff hq hd0 hx0 hx1 k
+  constructor
+  · intro hnos
+    have hk : ∀ k ∈ supp x,
+        (∃ i, i ≠ k ∧ q i - d * x i < -1) ∨ 1 - d < q k - d * x k := by
+      intro k hkm
+      have hns : ¬ (step d x k q ∈ Qbox m) := fun h => hnos ⟨k, hkm, h⟩
+      rw [hsafe k, not_and_or] at hns
+      rcases hns with hA | hB
+      · left; push_neg at hA; exact hA
+      · right; push_neg at hB; exact hB
+    by_cases htwo : ∃ i j, i ≠ j ∧ q i - d * x i < -1 ∧ q j - d * x j < -1
+    · exact Or.inl htwo
+    · right
+      push_neg at htwo
+      by_cases hone : ∃ ℓ, q ℓ - d * x ℓ < -1
+      · exfalso
+        obtain ⟨ℓ, hℓ⟩ := hone
+        have hother : ∀ i, i ≠ ℓ → -1 ≤ q i - d * x i :=
+          fun i hiℓ => htwo ℓ i (Ne.symm hiℓ) hℓ
+        obtain ⟨hℓsupp, hℓstep⟩ := unique_danger_rescue hq hd0 hd2 hx0 hx1 hℓ hother
+        exact hnos ⟨ℓ, hℓsupp, hℓstep⟩
+      · push_neg at hone
+        refine ⟨hone, ?_⟩
+        intro k hkm
+        rcases hk k hkm with hd' | hb
+        · obtain ⟨i, _, hyi⟩ := hd'
+          exact absurd (hone i) (not_le.mpr hyi)
+        · exact hb
+  · intro hdisj
+    rintro ⟨k, hksupp, hkstep⟩
+    rw [hsafe k] at hkstep
+    obtain ⟨hallge, hkle⟩ := hkstep
+    rcases hdisj with ⟨i, j, hij, hyi, hyj⟩ | ⟨hge, hub⟩
+    · by_cases hik : i = k
+      · have hjk : j ≠ k := by rw [← hik]; exact Ne.symm hij
+        exact absurd (hallge j hjk) (not_le.mpr hyj)
+      · exact absurd (hallge i hik) (not_le.mpr hyi)
+    · exact absurd (hub k hksupp) (not_lt.mpr hkle)
  
 /-! ## Mode D (paper Lemma 4.2) -/
  
