@@ -4,9 +4,8 @@
   Maps to the paper's Section 4 (the trap classification), which is the only
   part needed for Theorem 3.1. Farkas / support-function sections are optional.
  
-  STATUS: untested scaffold. Statements only; every proof is `sorry`.
-  Lemma names in mathlib drift — use `exact?`, loogle, or LeanSearch to
-  resolve any that have moved.
+  STATUS: complete. Every lemma and theorem is proved (no `sorry`), checked
+  against mathlib v4.32.0.
  
   Setup:  lake new fgpt math   →  lake exe cache get   →  drop this file in.
 -/
@@ -378,7 +377,130 @@ lemma modeB_iff {d : ℝ} (hd0 : 0 < d) (hd2 : d ≤ 2) {x : Fin m → ℝ}
     (∃ q ∈ Qbox m, (∀ i, -1 ≤ q i - d * x i) ∧
         ∀ k ∈ supp x, 1 - d < q k - d * x k) ↔
       2 * (suppCard x : ℝ) - (m : ℝ) < d * ((suppCard x : ℝ) - 1) := by
-  sorry
+  simp only [suppCard] at hs ⊢
+  have hmpos : (0 : ℝ) < (m : ℝ) := by
+    have : 0 < m := by omega
+    exact_mod_cast this
+  have hsm : (supp x).card ≤ m := by
+    have h := Finset.card_le_univ (supp x); rwa [Fintype.card_fin] at h
+  have hcard_compl : (((supp x)ᶜ).card : ℝ) = (m : ℝ) - ((supp x).card : ℝ) := by
+    rw [Finset.card_compl, Fintype.card_fin, Nat.cast_sub hsm]
+  constructor
+  · rintro ⟨q, hq, hlb, hub⟩
+    simp only [Qbox, Set.mem_setOf_eq] at hq
+    obtain ⟨hqsum, hqabs⟩ := hq
+    have hne_supp : (supp x).Nonempty := Finset.card_pos.mp (by omega)
+    have hlow : (∑ k ∈ supp x, (1 - d)) < ∑ k ∈ supp x, (q k - d * x k) :=
+      Finset.sum_lt_sum_of_nonempty hne_supp (fun k hk => hub k hk)
+    rw [Finset.sum_const, nsmul_eq_mul, mul_sub, mul_one,
+        mul_comm ((supp x).card : ℝ) d] at hlow
+    have hhigh : (∑ k ∈ (supp x)ᶜ, (-1 : ℝ)) ≤ ∑ k ∈ (supp x)ᶜ, (q k - d * x k) :=
+      Finset.sum_le_sum (fun k _ => hlb k)
+    rw [Finset.sum_const, nsmul_eq_mul, hcard_compl, mul_neg_one] at hhigh
+    have hsplit : (∑ k ∈ supp x, (q k - d * x k)) +
+        (∑ k ∈ (supp x)ᶜ, (q k - d * x k)) = -d := by
+      rw [Finset.sum_add_sum_compl, Finset.sum_sub_distrib, ← Finset.mul_sum, hqsum, hx1]; ring
+    rw [mul_sub, mul_one]
+    linarith [hlow, hhigh, hsplit]
+  · intro hlt
+    have hsx1 : (∑ i ∈ supp x, x i) = 1 := by
+      rw [← hx1]
+      apply Finset.sum_subset (Finset.subset_univ _)
+      intro i _ hi
+      simp only [supp, Finset.mem_filter, Finset.mem_univ, true_and, not_not] at hi
+      exact hi
+    have hxk_lt : ∀ k ∈ supp x, x k < 1 := by
+      intro k hk
+      obtain ⟨a, ha, b1, hb1, hab⟩ := Finset.one_lt_card.mp (show 1 < (supp x).card from hs)
+      have hj : ∃ j, j ≠ k ∧ 0 < x j := by
+        rcases eq_or_ne a k with rfl | hak
+        · refine ⟨b1, hab.symm, ?_⟩
+          simp only [supp, Finset.mem_filter, Finset.mem_univ, true_and] at hb1
+          exact (hx0 b1).lt_of_ne (Ne.symm hb1)
+        · refine ⟨a, hak, ?_⟩
+          simp only [supp, Finset.mem_filter, Finset.mem_univ, true_and] at ha
+          exact (hx0 a).lt_of_ne (Ne.symm ha)
+      obtain ⟨j, hjk, hxj⟩ := hj
+      have hpair_le : x k + x j ≤ ∑ i, x i := by
+        rw [← Finset.sum_pair (Ne.symm hjk)]
+        exact Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _) (fun i _ _ => hx0 i)
+      rw [hx1] at hpair_le
+      linarith
+    set b : Fin m → ℝ := fun i => if i ∈ supp x then 1 - d * (1 - x i) else -1 with hbdef
+    have hb_supp : ∀ i ∈ supp x, b i = 1 - d + d * x i := by
+      intro i hi; simp only [hbdef]; rw [if_pos hi]; ring
+    have hb_nsupp : ∀ i, i ∉ supp x → b i = -1 := by
+      intro i hi; simp only [hbdef]; rw [if_neg hi]
+    have hb_le1 : ∀ i, b i ≤ 1 := by
+      intro i
+      by_cases hi : i ∈ supp x
+      · rw [hb_supp i hi]
+        have hxi1 : x i ≤ 1 := by
+          have h := Finset.single_le_sum (f := x) (fun a _ => hx0 a) (mem_univ i); rwa [hx1] at h
+        nlinarith [hd0, hxi1]
+      · rw [hb_nsupp i hi]; linarith
+    have hb_ge : ∀ i, -1 ≤ b i := by
+      intro i
+      by_cases hi : i ∈ supp x
+      · rw [hb_supp i hi]
+        have hdxi : 0 ≤ d * x i := mul_nonneg hd0.le (hx0 i)
+        linarith [hd2]
+      · exact (hb_nsupp i hi).ge
+    set P : ℝ := ∑ i, b i with hPdef
+    have hPval : P = 2 * ((supp x).card : ℝ) - (m : ℝ) - d * (((supp x).card : ℝ) - 1) := by
+      rw [hPdef, ← Finset.sum_add_sum_compl (supp x) b]
+      have e1 : (∑ i ∈ supp x, b i) = ((supp x).card : ℝ) * (1 - d) + d := by
+        rw [Finset.sum_congr rfl (fun i hi => hb_supp i hi), Finset.sum_add_distrib,
+            Finset.sum_const, nsmul_eq_mul, ← Finset.mul_sum, hsx1, mul_one]
+      have e2 : (∑ i ∈ (supp x)ᶜ, b i) = -((m : ℝ) - ((supp x).card : ℝ)) := by
+        rw [Finset.sum_congr rfl (fun i hi => hb_nsupp i (Finset.mem_compl.mp hi)),
+            Finset.sum_const, nsmul_eq_mul, hcard_compl, mul_neg_one]
+      rw [e1, e2]; ring
+    have hP_neg : P < 0 := by rw [hPval]; linarith [hlt]
+    have hmP : (0 : ℝ) < (m : ℝ) - P := by linarith [hP_neg, hmpos]
+    have hmPne : (m : ℝ) - P ≠ 0 := ne_of_gt hmP
+    set t : ℝ := -P / ((m : ℝ) - P) with htdef
+    have ht_pos : 0 < t := by rw [htdef]; exact div_pos (by linarith) hmP
+    have ht_le1 : t ≤ 1 := by rw [htdef, div_le_one hmP]; linarith [hmpos]
+    have ht_id : t * ((m : ℝ) - P) = -P := by rw [htdef]; field_simp
+    set q : Fin m → ℝ := fun i => b i + t * (1 - b i) with hqdef
+    have hq_val : ∀ i, q i = b i + t * (1 - b i) := fun i => by simp only [hqdef]
+    have hy_supp : ∀ i ∈ supp x, q i - d * x i = 1 - d + t * (d * (1 - x i)) := by
+      intro i hi; rw [hq_val i, hb_supp i hi]; ring
+    have hy_nsupp : ∀ i, i ∉ supp x → q i - d * x i = -1 + 2 * t := by
+      intro i hi
+      have hx0i : x i = 0 := by
+        simp only [supp, Finset.mem_filter, Finset.mem_univ, true_and, not_not] at hi; exact hi
+      rw [hq_val i, hb_nsupp i hi, hx0i]; ring
+    refine ⟨q, ?_, ?_, ?_⟩
+    · simp only [Qbox, Set.mem_setOf_eq]
+      refine ⟨?_, ?_⟩
+      · have hsumq : (∑ i, q i) = P + t * ((m : ℝ) - P) := by
+          have hstep : (∑ i, q i) = (∑ i, b i) + ∑ i, t * (1 - b i) := by
+            simp only [hq_val]; rw [Finset.sum_add_distrib]
+          rw [hstep, ← hPdef, ← Finset.mul_sum, Finset.sum_sub_distrib, Finset.sum_const,
+              Finset.card_univ, Fintype.card_fin, nsmul_eq_mul, mul_one, ← hPdef]
+        rw [hsumq, ht_id]; ring
+      · intro i
+        rw [abs_le, hq_val i]
+        constructor
+        · nlinarith [hb_ge i, ht_pos, ht_le1]
+        · nlinarith [hb_le1 i, ht_pos, ht_le1]
+    · intro i
+      by_cases hi : i ∈ supp x
+      · rw [hy_supp i hi]
+        have hxi1 : x i ≤ 1 := by
+          have h := Finset.single_le_sum (f := x) (fun a _ => hx0 a) (mem_univ i); rwa [hx1] at h
+        have hnn : 0 ≤ t * (d * (1 - x i)) :=
+          mul_nonneg ht_pos.le (mul_nonneg hd0.le (by linarith))
+        linarith [hd2]
+      · rw [hy_nsupp i hi]; linarith [ht_pos]
+    · intro k hk
+      rw [hy_supp k hk]
+      have hxk1 : x k < 1 := hxk_lt k hk
+      have hpp : 0 < t * (d * (1 - x k)) :=
+        mul_pos ht_pos (mul_pos hd0 (by linarith))
+      linarith
  
 /-! ## Main theorem (paper Theorem 3.1) -/
  
