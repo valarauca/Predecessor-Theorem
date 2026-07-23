@@ -578,5 +578,96 @@ theorem no_invariance_of_four_le {d : ℝ} (hd0 : 0 < d) (hd2 : d ≤ 2)
   have hmle : (4:ℝ) ≤ (m:ℝ) := by exact_mod_cast hm
   linarith
  
+section Witnesses
+
+/-- `σ₂ x ≤ 1` for any probability vector — extracted verbatim from the
+    inline argument (`hσ1`) inside `modeD_iff`. -/
+lemma sigma2_le_one {x : Fin m → ℝ} (hx0 : ∀ i, 0 ≤ x i)
+    (hx1 : (∑ i, x i) = 1) : sigma2 x ≤ 1 := by
+  unfold sigma2
+  split_ifs with hne
+  · apply Finset.sup'_le
+    intro p hp
+    rw [Finset.mem_offDiag] at hp
+    obtain ⟨-, -, hpne⟩ := hp
+    calc x p.1 + x p.2
+        = ∑ k ∈ ({p.1, p.2} : Finset (Fin m)), x k := (Finset.sum_pair hpne).symm
+      _ ≤ ∑ k, x k :=
+          Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _)
+            (fun k _ _ => hx0 k)
+      _ = 1 := hx1
+  · exact zero_le_one
+
+/-- The fair pair on three machines. -/
+noncomputable def xFair : Fin 3 → ℝ := ![1/2, 1/2, 0]
+
+lemma xFair_nonneg : ∀ i, 0 ≤ xFair i := by
+  intro i; fin_cases i <;> norm_num [xFair]
+
+lemma xFair_sum : (∑ i, xFair i) = 1 := by
+  rw [Fin.sum_univ_three]; simp [xFair]; norm_num
+
+lemma two_le_suppCard_xFair : 2 ≤ suppCard xFair := by
+  have h0 : (0 : Fin 3) ∈ supp xFair := by
+    simp only [supp, Finset.mem_filter, Finset.mem_univ, true_and]
+    norm_num [xFair]
+  have h1 : (1 : Fin 3) ∈ supp xFair := by
+    simp only [supp, Finset.mem_filter, Finset.mem_univ, true_and]
+    norm_num [xFair]
+  show 1 < (supp xFair).card
+  exact Finset.one_lt_card.mpr ⟨0, h0, 1, h1, by decide⟩
+
+/-- Optional exact evaluation: `σ₂` of the fair pair is `1`.
+    (Delete this lemma if it fights; nothing below depends on it.) -/
+lemma sigma2_xFair : sigma2 xFair = 1 := by
+  refine le_antisymm (sigma2_le_one xFair_nonneg xFair_sum) ?_
+  have h := add_le_sigma2 xFair (show (0 : Fin 3) ≠ 1 by decide)
+  have hv : xFair 0 + xFair 1 = 1 := by norm_num [xFair]
+  linarith
+
+/-- **Witness, "if" direction** (the m = 3 corollary at the uniform
+    radius): the fair pair is safe at demand `d = 1` from every state
+    of `Q₃`, derived through `fgpt`. -/
+theorem fairPair_safe_at_one :
+    ∀ q ∈ Qbox 3, ∃ k ∈ supp xFair, step 1 xFair k q ∈ Qbox 3 := by
+  rw [fgpt (by norm_num) (by norm_num) (by norm_num)
+      xFair_nonneg xFair_sum two_le_suppCard_xFair]
+  have hσ := sigma2_le_one xFair_nonneg xFair_sum
+  have hs : (2 : ℝ) ≤ (suppCard xFair : ℝ) := by
+    exact_mod_cast two_le_suppCard_xFair
+  constructor
+  · push_cast
+    linarith
+  · push_cast
+    linarith
+
+/-- The fair pair padded to four machines. -/
+noncomputable def xFair4 : Fin 4 → ℝ := ![1/2, 1/2, 0, 0]
+
+lemma xFair4_nonneg : ∀ i, 0 ≤ xFair4 i := by
+  intro i; fin_cases i <;> norm_num [xFair4]
+
+lemma xFair4_sum : (∑ i, xFair4 i) = 1 := by
+  rw [Fin.sum_univ_four]; simp [xFair4]; norm_num
+
+lemma two_le_suppCard_xFair4 : 2 ≤ suppCard xFair4 := by
+  have h0 : (0 : Fin 4) ∈ supp xFair4 := by
+    simp only [supp, Finset.mem_filter, Finset.mem_univ, true_and]
+    norm_num [xFair4]
+  have h1 : (1 : Fin 4) ∈ supp xFair4 := by
+    simp only [supp, Finset.mem_filter, Finset.mem_univ, true_and]
+    norm_num [xFair4]
+  show 1 < (supp xFair4).card
+  exact Finset.one_lt_card.mpr ⟨0, h0, 1, h1, by decide⟩
+
+/-- **Witness, obstruction direction** (paper §7): the same column on
+    four machines is unsafe at `d = 1`, via `no_invariance_of_four_le`. -/
+theorem fairPair4_unsafe_at_one :
+    ¬ (∀ q ∈ Qbox 4, ∃ k ∈ supp xFair4, step 1 xFair4 k q ∈ Qbox 4) :=
+  no_invariance_of_four_le (by norm_num) (by norm_num) (by norm_num)
+    xFair4_nonneg xFair4_sum two_le_suppCard_xFair4
+
+end Witnesses
+
 end FGPT
  
