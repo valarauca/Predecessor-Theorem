@@ -49,7 +49,13 @@ noncomputable def sigma2 (x : Fin m → ℝ) : ℝ :=
 /-- Every pair is dominated by `σ₂`.  (Unfold `sigma2`; `Finset.le_sup'`.) -/
 lemma add_le_sigma2 (x : Fin m → ℝ) {i j : Fin m} (hij : i ≠ j) :
     x i + x j ≤ sigma2 x := by
-  sorry
+  have hp : (i, j) ∈ (univ : Finset (Fin m)).offDiag := by
+    rw [Finset.mem_offDiag]
+    exact ⟨mem_univ i, mem_univ j, hij⟩
+  have hne : ((univ : Finset (Fin m)).offDiag).Nonempty := ⟨(i, j), hp⟩
+  unfold sigma2
+  rw [dif_pos hne]
+  exact Finset.le_sup' (fun p => x p.1 + x p.2) hp
  
 /-- Some pair attains `σ₂`, and with `s ≥ 2` both members can be taken
     strictly positive (needed for Mode D's `ε < d·xᵢ`).
@@ -58,13 +64,43 @@ lemma add_le_sigma2 (x : Fin m → ℝ) {i j : Fin m} (hij : i ≠ j) :
 lemma exists_sigma2_pair_pos (x : Fin m → ℝ) (hx0 : ∀ i, 0 ≤ x i)
     (hs : 2 ≤ suppCard x) :
     ∃ i j, i ≠ j ∧ 0 < x i ∧ 0 < x j ∧ sigma2 x = x i + x j := by
-  sorry
+  have h1 : 1 < (supp x).card := hs
+  obtain ⟨a, ha, b, hb, hab⟩ := Finset.one_lt_card.mp h1
+  simp only [supp, Finset.mem_filter, Finset.mem_univ, true_and] at ha hb
+  have hxa : 0 < x a := (hx0 a).lt_of_ne (Ne.symm ha)
+  have hxb : 0 < x b := (hx0 b).lt_of_ne (Ne.symm hb)
+  have hne : ((univ : Finset (Fin m)).offDiag).Nonempty := by
+    refine ⟨(a, b), ?_⟩
+    rw [Finset.mem_offDiag]; exact ⟨mem_univ a, mem_univ b, hab⟩
+  obtain ⟨p, hp, hpe⟩ := Finset.exists_mem_eq_sup' hne (fun p => x p.1 + x p.2)
+  rw [Finset.mem_offDiag] at hp
+  obtain ⟨-, -, hpij⟩ := hp
+  have hsig : sigma2 x = x p.1 + x p.2 := by
+    unfold sigma2; rw [dif_pos hne]; exact hpe
+  have hpos_ne : ∀ t : Fin m, ∃ c, c ≠ t ∧ 0 < x c := by
+    intro t
+    rcases eq_or_ne a t with rfl | hat
+    · exact ⟨b, hab.symm, hxb⟩
+    · exact ⟨a, hat, hxa⟩
+  refine ⟨p.1, p.2, hpij, ?_, ?_, hsig⟩
+  · obtain ⟨c, hc, hxc⟩ := hpos_ne p.2
+    have hle := add_le_sigma2 x hc
+    rw [hsig] at hle; linarith
+  · obtain ⟨c, hc, hxc⟩ := hpos_ne p.1
+    have hle := add_le_sigma2 x (Ne.symm hc)
+    rw [hsig] at hle; linarith
  
 /-- `σ₂ x > 0` when `s ≥ 2` — needed for the ratio-form corollary and the
     `m ≥ 4` obstruction. -/
 lemma sigma2_pos (x : Fin m → ℝ) (hx0 : ∀ i, 0 ≤ x i) (hs : 2 ≤ suppCard x) :
     0 < sigma2 x := by
-  sorry
+  have h1 : 1 < (supp x).card := hs
+  obtain ⟨i, hi, j, hj, hij⟩ := Finset.one_lt_card.mp h1
+  simp only [supp, Finset.mem_filter, Finset.mem_univ, true_and] at hi hj
+  have hxi : 0 < x i := (hx0 i).lt_of_ne (Ne.symm hi)
+  have hxj : 0 < x j := (hx0 j).lt_of_ne (Ne.symm hj)
+  have hle := add_le_sigma2 x hij
+  linarith
  
 /-! ## Safe-choice criterion (paper Lemma 4.1)
  
@@ -81,7 +117,41 @@ lemma step_mem_iff {q : Fin m → ℝ} (hq : q ∈ Qbox m)
     (hx0 : ∀ i, 0 ≤ x i) (hx1 : (∑ i, x i) = 1) (k : Fin m) :
     step d x k q ∈ Qbox m ↔
       (∀ i, i ≠ k → -1 ≤ q i - d * x i) ∧ q k - d * x k ≤ 1 - d := by
-  sorry
+  simp only [Qbox, Set.mem_setOf_eq] at hq ⊢
+  obtain ⟨hqsum, hqabs⟩ := hq
+  have hxk1 : x k ≤ 1 := by
+    have h := Finset.single_le_sum (f := x) (fun i _ => hx0 i) (mem_univ k)
+    rwa [hx1] at h
+  have hstepsum : (∑ i, step d x k q i) = 0 := by
+    unfold step
+    rw [Finset.sum_add_distrib, hqsum, ← Finset.mul_sum]
+    have hz : (∑ i, ((if i = k then (1:ℝ) else 0) - x i)) = 0 := by
+      rw [Finset.sum_sub_distrib, hx1]; simp
+    rw [hz]; ring
+  constructor
+  · rintro ⟨_, habs⟩
+    simp only [step] at habs
+    refine ⟨fun i hik => ?_, ?_⟩
+    · have h := habs i
+      rw [if_neg hik, show (0:ℝ) - x i = -x i from by ring, mul_neg,
+          ← sub_eq_add_neg, abs_le] at h
+      exact h.1
+    · have h := habs k
+      rw [if_pos rfl, mul_sub, mul_one, abs_le] at h
+      linarith [h.2]
+  · rintro ⟨hlow, hup⟩
+    refine ⟨hstepsum, fun i => ?_⟩
+    simp only [step]
+    by_cases hik : i = k
+    · rw [hik, if_pos rfl, mul_sub, mul_one, abs_le]
+      have hqk := abs_le.mp (hqabs k)
+      have hdxk : d * x k ≤ d := by nlinarith [hx0 k, hxk1]
+      exact ⟨by linarith [hqk.1], by linarith [hup]⟩
+    · rw [if_neg hik, show (0:ℝ) - x i = -x i from by ring, mul_neg,
+          ← sub_eq_add_neg, abs_le]
+      have hqi := abs_le.mp (hqabs i)
+      have hdxi : 0 ≤ d * x i := mul_nonneg (le_of_lt hd0) (hx0 i)
+      exact ⟨hlow i hik, by linarith [hqi.2]⟩
  
 /-- Automatic rescue of a unique lower danger (paper §4.1, fact 3):
     a lower-dangerous `ℓ` is supported (`q ℓ < -1 + d·x ℓ` forces `x ℓ > 0`),
@@ -92,7 +162,21 @@ lemma unique_danger_rescue {q : Fin m → ℝ} (hq : q ∈ Qbox m)
     {ℓ : Fin m} (hℓ : q ℓ - d * x ℓ < -1)
     (hother : ∀ i, i ≠ ℓ → -1 ≤ q i - d * x i) :
     ℓ ∈ supp x ∧ step d x ℓ q ∈ Qbox m := by
-  sorry
+  have hqp := hq
+  simp only [Qbox, Set.mem_setOf_eq] at hqp
+  obtain ⟨hqsum, hqabs⟩ := hqp
+  have hqℓ := abs_le.mp (hqabs ℓ)
+  have hxℓpos : 0 < x ℓ := by
+    by_contra h
+    push_neg at h
+    have hz : x ℓ = 0 := le_antisymm h (hx0 ℓ)
+    rw [hz] at hℓ; simp at hℓ; linarith [hqℓ.1]
+  have hmem : ℓ ∈ supp x := by
+    simp only [supp, Finset.mem_filter, Finset.mem_univ, true_and]
+    exact hxℓpos.ne'
+  refine ⟨hmem, ?_⟩
+  rw [step_mem_iff hq hd0 hx0 hx1 ℓ]
+  exact ⟨hother, by linarith⟩
  
 /-! ## Certificate completeness (paper §4.1) -/
  
@@ -155,7 +239,38 @@ theorem fgpt {d : ℝ} (hd0 : 0 < d) (hd2 : d ≤ 2) {x : Fin m → ℝ}
     (∀ q ∈ Qbox m, ∃ k ∈ supp x, step d x k q ∈ Qbox m) ↔
       (d * sigma2 x ≤ (4 : ℝ) - (m : ℝ) ∧
        d * ((suppCard x : ℝ) - 1) ≤ 2 * (suppCard x : ℝ) - (m : ℝ)) := by
-  sorry
+  have key : (∃ q ∈ Qbox m, ¬ ∃ k ∈ supp x, step d x k q ∈ Qbox m) ↔
+      ((4:ℝ) - m < d * sigma2 x) ∨
+      (2 * (suppCard x : ℝ) - m < d * ((suppCard x : ℝ) - 1)) := by
+    constructor
+    · rintro ⟨q, hq, htrap⟩
+      rw [trap_iff hq hd0 hd2 hx0 hx1 hs] at htrap
+      rcases htrap with hD | hB
+      · left; rw [← modeD_iff hd0 hd2 hm hx0 hx1 hs]; exact ⟨q, hq, hD⟩
+      · right; rw [← modeB_iff hd0 hd2 hm hx0 hx1 hs]; exact ⟨q, hq, hB⟩
+    · rintro (hD | hB)
+      · rw [← modeD_iff hd0 hd2 hm hx0 hx1 hs] at hD
+        obtain ⟨q, hq, i, j, hij, hqi, hqj⟩ := hD
+        exact ⟨q, hq, by
+          rw [trap_iff hq hd0 hd2 hx0 hx1 hs]; exact Or.inl ⟨i, j, hij, hqi, hqj⟩⟩
+      · rw [← modeB_iff hd0 hd2 hm hx0 hx1 hs] at hB
+        obtain ⟨q, hq, hb1, hb2⟩ := hB
+        exact ⟨q, hq, by
+          rw [trap_iff hq hd0 hd2 hx0 hx1 hs]; exact Or.inr ⟨hb1, hb2⟩⟩
+  constructor
+  · intro hall
+    constructor
+    · by_contra hc; push_neg at hc
+      obtain ⟨q, hq, hnk⟩ := key.mpr (Or.inl hc)
+      exact hnk (hall q hq)
+    · by_contra hc; push_neg at hc
+      obtain ⟨q, hq, hnk⟩ := key.mpr (Or.inr hc)
+      exact hnk (hall q hq)
+  · rintro ⟨hle1, hle2⟩ q hq
+    by_contra hnk
+    rcases key.mp ⟨q, hq, hnk⟩ with h | h
+    · linarith
+    · linarith
  
 /-- Ratio form of the threshold. Since `σ₂ x > 0` and `(s : ℝ) - 1 ≥ 1`,
     each cut divides cleanly: `div_le_iff` / `le_div_iff` with
@@ -166,7 +281,13 @@ theorem fgpt_ratio {d : ℝ} (hd0 : 0 < d) (hd2 : d ≤ 2) {x : Fin m → ℝ}
     (∀ q ∈ Qbox m, ∃ k ∈ supp x, step d x k q ∈ Qbox m) ↔
       d ≤ min ((2 * (suppCard x : ℝ) - m) / ((suppCard x : ℝ) - 1))
               (((4 : ℝ) - m) / sigma2 x) := by
-  sorry
+  rw [fgpt hd0 hd2 hm hx0 hx1 hs, le_min_iff]
+  have hσ : 0 < sigma2 x := sigma2_pos x hx0 hs
+  have hs1 : 0 < (suppCard x : ℝ) - 1 := by
+    have : (2:ℝ) ≤ (suppCard x : ℝ) := by exact_mod_cast hs
+    linarith
+  rw [le_div_iff₀ hs1, le_div_iff₀ hσ]
+  tauto
  
 /-- Rank-four obstruction (paper §10.2): for `m ≥ 4` no positive demand
     gives full one-step invariance. From `fgpt`: `d * σ₂ ≤ 4 - m ≤ 0`
@@ -175,7 +296,13 @@ theorem no_invariance_of_four_le {d : ℝ} (hd0 : 0 < d) (hd2 : d ≤ 2)
     {x : Fin m → ℝ} (hm : 4 ≤ m) (hx0 : ∀ i, 0 ≤ x i)
     (hx1 : (∑ i, x i) = 1) (hs : 2 ≤ suppCard x) :
     ¬ (∀ q ∈ Qbox m, ∃ k ∈ supp x, step d x k q ∈ Qbox m) := by
-  sorry
+  intro hall
+  have hm2 : 2 ≤ m := le_trans (by norm_num) hm
+  rw [fgpt hd0 hd2 hm2 hx0 hx1 hs] at hall
+  obtain ⟨h1, _⟩ := hall
+  have hpos : 0 < d * sigma2 x := mul_pos hd0 (sigma2_pos x hx0 hs)
+  have hmle : (4:ℝ) ≤ (m:ℝ) := by exact_mod_cast hm
+  linarith
  
 end FGPT
  
