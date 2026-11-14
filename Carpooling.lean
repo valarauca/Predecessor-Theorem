@@ -8,3 +8,4 @@ import Carpooling.Offline
 import Carpooling.Example
 import Carpooling.Uncrossing
 import Carpooling.Adversary
+import Carpooling.KernelMax
