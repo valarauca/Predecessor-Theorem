@@ -5,3 +5,6 @@ import Carpooling.Greedy
 import Carpooling.Kernel
 import Carpooling.Online
 import Carpooling.Offline
+import Carpooling.Example
+import Carpooling.Uncrossing
+import Carpooling.Adversary
