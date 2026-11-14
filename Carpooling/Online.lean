@@ -125,9 +125,9 @@ theorem traj_relint (hm : 3 ≤ m) {d : ℕ → ℝ} {x : ℕ → Fin m → ℝ}
     · rcases (hd t).eq_or_lt with hdt | hdt
       · left
         refine ⟨?_, ?_⟩
-        · show max (Dmax d t) (d (t + 1)) = 0
+        · change max (Dmax d t) (d (t + 1)) = 0
           rw [hD0, ← hdt, max_self]
-        · show step (d (t + 1)) (x (t + 1)) (k (t + 1)) (traj d x k t) = 0
+        · change step (d (t + 1)) (x (t + 1)) (k (t + 1)) (traj d x k t) = 0
           rw [hq0, ← hdt, step_zero_demand]
       · have hDp : 0 < Dmax d (t + 1) := lt_of_lt_of_le hdt (le_max_right _ _)
         right
