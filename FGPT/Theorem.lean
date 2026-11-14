@@ -7,7 +7,7 @@
   STATUS: complete. Every lemma and theorem is proved (no `sorry`), checked
   against mathlib v4.32.0.
  
-  Setup:  lake new fgpt math   →  lake exe cache get   →  drop this file in.
+  Setup:  lake exe cache get   →  lake build FGPT
 -/
 import Mathlib
  
