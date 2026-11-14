@@ -1,0 +1,1 @@
+import FGPT.Theorem

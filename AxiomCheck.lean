@@ -1,4 +1,4 @@
-import Myproj.FGPT
+import FGPT
 
 #print axioms FGPT.fgpt
 #print axioms FGPT.fgpt_ratio
