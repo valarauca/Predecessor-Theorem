@@ -1,8 +1,8 @@
 /-
   Fixed-Generator Predecessor Theorem — Lean 4 / mathlib formalization skeleton.
  
-  Maps to the paper's Section 4 (the trap classification), which is the only
-  part needed for Theorem 3.1. Farkas / support-function sections are optional.
+  Maps to the paper's Section 5 (the trap classification), which is the only
+  part needed for Theorem 4.1. Farkas / support-function sections are optional.
  
   STATUS: complete. Every lemma and theorem is proved (no `sorry`), checked
   against mathlib v4.32.0.
@@ -17,7 +17,7 @@ namespace FGPT
  
 variable {m : ℕ}
  
-/-! ## Definitions (paper §2) -/
+/-! ## Definitions (paper §3) -/
  
 /-- The zero-sum cube section `Q_m`. -/
 def Qbox (m : ℕ) : Set (Fin m → ℝ) :=
@@ -101,7 +101,7 @@ lemma sigma2_pos (x : Fin m → ℝ) (hx0 : ∀ i, 0 ≤ x i) (hs : 2 ≤ suppCa
   have hle := add_le_sigma2 x hij
   linarith
  
-/-! ## Safe-choice criterion (paper Lemma 4.1)
+/-! ## Safe-choice criterion (paper Lemma 5.1)
  
 The recentered state is `y i = q i - d * x i`; we inline it below rather than
 naming it, so `linarith` sees the raw atoms. -/
@@ -152,7 +152,7 @@ lemma step_mem_iff {q : Fin m → ℝ} (hq : q ∈ Qbox m)
       have hdxi : 0 ≤ d * x i := mul_nonneg (le_of_lt hd0) (hx0 i)
       exact ⟨hlow i hik, by linarith [hqi.2]⟩
  
-/-- Automatic rescue of a unique lower danger (paper §4.1, fact 3):
+/-- Automatic rescue of a unique lower danger (paper Lemma 5.2):
     a lower-dangerous `ℓ` is supported (`q ℓ < -1 + d·x ℓ` forces `x ℓ > 0`),
     and choosing it is safe when `d ≤ 2` (`y ℓ + d < -1 + d ≤ 1`). -/
 lemma unique_danger_rescue {q : Fin m → ℝ} (hq : q ∈ Qbox m)
@@ -177,7 +177,7 @@ lemma unique_danger_rescue {q : Fin m → ℝ} (hq : q ∈ Qbox m)
   rw [step_mem_iff hq hd0 hx0 hx1 ℓ]
   exact ⟨hother, by linarith⟩
  
-/-! ## Certificate completeness (paper §4.1) -/
+/-! ## Certificate completeness (paper Theorem 5.3) -/
  
 /-- A state is a trap iff Mode D or Mode B holds at it. Case-split on the
     number of lower-dangerous coordinates: `≥ 2` is Mode D; exactly one is
@@ -231,7 +231,7 @@ lemma trap_iff {q : Fin m → ℝ} (hq : q ∈ Qbox m)
       · exact absurd (hallge i hik) (not_le.mpr hyi)
     · exact absurd (hub k hksupp) (not_lt.mpr hkle)
  
-/-! ## Mode D (paper Lemma 4.2) -/
+/-! ## Mode D (paper Proposition 5.4) -/
  
 /-- A state with two lower-dangerous coordinates exists iff `d σ₂(x) > 4 - m`.
     Necessity: sum over `univ`, splitting off `{i, j}`; bound the rest by
@@ -362,7 +362,7 @@ lemma modeD_iff {d : ℝ} (hd0 : 0 < d) (hd2 : d ≤ 2) {x : Fin m → ℝ}
     · rw [hqi_val]; linarith [hε_pos]
     · rw [hqj_val]; linarith [hε_pos]
  
-/-! ## Mode B (paper Lemma 4.3) -/
+/-! ## Mode B (paper Proposition 5.5) -/
  
 /-- A state with no lower danger and every supported coordinate upper-blocked
     exists iff `d (s - 1) > 2s - m`.
@@ -502,7 +502,7 @@ lemma modeB_iff {d : ℝ} (hd0 : 0 < d) (hd2 : d ≤ 2) {x : Fin m → ℝ}
         mul_pos ht_pos (mul_pos hd0 (by linarith))
       linarith
  
-/-! ## Main theorem (paper Theorem 3.1) -/
+/-! ## Main theorem (paper Theorem 4.1) -/
  
 /-- **Fixed-Generator Predecessor Theorem**, multiplicative form.
     Assemble `trap_iff`, `modeD_iff`, `modeB_iff`; equality-is-safe is
@@ -563,7 +563,7 @@ theorem fgpt_ratio {d : ℝ} (hd0 : 0 < d) (hd2 : d ≤ 2) {x : Fin m → ℝ}
   rw [le_div_iff₀ hs1, le_div_iff₀ hσ]
   tauto
  
-/-- Rank-four obstruction (paper §10.2): for `m ≥ 4` no positive demand
+/-- Rank-four obstruction (paper Corollary 4.3): for `m ≥ 4` no positive demand
     gives full one-step invariance. From `fgpt`: `d * σ₂ ≤ 4 - m ≤ 0`
     contradicts `d > 0` and `sigma2_pos`. -/
 theorem no_invariance_of_four_le {d : ℝ} (hd0 : 0 < d) (hd2 : d ≤ 2)
@@ -660,7 +660,7 @@ lemma two_le_suppCard_xFair4 : 2 ≤ suppCard xFair4 := by
   show 1 < (supp xFair4).card
   exact Finset.one_lt_card.mpr ⟨0, h0, 1, h1, by decide⟩
 
-/-- **Witness, obstruction direction** (paper §7): the same column on
+/-- **Witness, obstruction direction** (paper §8.2): the same column on
     four machines is unsafe at `d = 1`, via `no_invariance_of_four_le`. -/
 theorem fairPair4_unsafe_at_one :
     ¬ (∀ q ∈ Qbox 4, ∃ k ∈ supp xFair4, step 1 xFair4 k q ∈ Qbox 4) :=
